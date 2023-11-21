@@ -21,7 +21,7 @@ elif selected_option == "ピッキング":
 
 elif selected_option == "e-shops":
     # e_shops.py の内容をインポートして実行
-    from e_shops import main as e_shops_page
+    from e_shops import e_shops_page
     e_shops_page()
 
 elif selected_option == "店舗":

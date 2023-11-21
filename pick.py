@@ -1,52 +1,45 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import tabula
 from io import BytesIO
 
+def create_data_entry_form():
+    # データ入力フォームの作成
+    with st.form("data_entry_form"):
+        # ユーザーがデータを入力できるフィールドを作成
+        jan_code = st.text_input("JANコード")
+        quantity = st.number_input("数量", min_value=0)
+        name = st.text_input("名称")
+        submit_button = st.form_submit_button("データを追加")
+
+    # 入力されたデータを返す
+    return jan_code, quantity, name, submit_button
+
 def picking_page():
-    # Streamlitアプリのタイトルを設定
     st.title('PDFファイル処理アプリ')
 
-    # ファイルアップローダーを設置
-    uploaded_files = st.file_uploader("PDFファイルを選択してください", accept_multiple_files=True, type="pdf")
+    # 空のデータフレームを作成
+    processed_data = pd.DataFrame(columns=["JANコード", "数量", "名称"])
 
-    if uploaded_files:
-        df_all = pd.DataFrame()
+    # データ入力フォームを表示
+    jan_code, quantity, name, submitted = create_data_entry_form()
 
-        for uploaded_file in uploaded_files:
-            # BytesIOを使用してPDFファイルを読み込む
-            df_list = tabula.read_pdf(BytesIO(uploaded_file.read()), pages='all', stream=True, pandas_options={'header': None})
+    # データが送信された場合、データフレームに追加
+    if submitted and jan_code and name:
+        new_row = {"JANコード": jan_code, "数量": quantity, "名称": name}
+        processed_data = processed_data.append(new_row, ignore_index=True)
+        st.success("データが追加されました")
 
-            for data_frame in df_list:
-                # 各PDFファイルからデータを抽出し、データフレームに変換
-                header_row = data_frame[data_frame[1] == 'JANコード'].index[0]
-                data_frame.columns = data_frame.iloc[header_row]
-                data_frame = data_frame.drop(header_row)
-                data_frame = data_frame[['JANコード', '数量 名称']].dropna()
-                data_frame[['数量', '名称']] = data_frame['数量 名称'].str.split(' ', n=1, expand=True)
-                data_frame = data_frame.drop(columns=['数量 名称', '名称'])
-                data_frame['数量'] = pd.to_numeric(data_frame['数量'], errors='coerce').astype(np.int64)
+    # データフレームを表示
+    if not processed_data.empty:
+        st.write(processed_data)
 
-                df_all = pd.concat([df_all, data_frame], ignore_index=True)
-
-
-        # '合計'行を削除
-        df_all = df_all[df_all['JANコード'] != '合計']
-
-        # JANコードでグループ化して数量を合計
-        df_all = df_all.groupby('JANコード').sum().reset_index()
-
-        # 結果を表示
-        st.write(df_all)
-
-        # データをExcelファイルとしてダウンロードするためのボタンを配置
+        # データをExcelファイルとしてダウンロード可能にする
         towrite = BytesIO()
-        df_all.to_excel(towrite, index=False)  # towriteにデータを書き込む
-        towrite.seek(0)  # ファイルポインターを先頭に戻す
+        processed_data.to_excel(towrite, index=False)
+        towrite.seek(0)
         st.download_button(label="Excelファイルとしてダウンロード", 
                            data=towrite, 
                            file_name="total_pickinglist.xlsx", 
                            mime="application/vnd.ms-excel")
-        
 
+picking_page()
