@@ -1,8 +1,9 @@
 import pandas as pd
 import streamlit as st
-import tabula
+import tabula  # tabula-pyをインポート
 import io
 import base64
+import tempfile
 
 # バイナリファイルダウンローダーのHTMLを生成する関数
 def get_binary_file_downloader_html(bin_file, file_label='File'):
@@ -12,14 +13,15 @@ def get_binary_file_downloader_html(bin_file, file_label='File'):
 
 # PDFファイルからピッキングリストを処理する関数
 def process_picking_list_pdf(uploaded_file):
-    # PDFからテーブルを読み込む
-    tables = tabula.read_pdf(uploaded_file, pages='all', multiple_tables=True)
-    # 複数のテーブルを1つのDataFrameに結合する
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file.write(uploaded_file.getvalue())
+        file_path = temp_file.name
+
+    tables = tabula.read_pdf(file_path, pages='all', multiple_tables=True)
     picking_list = pd.concat(tables, ignore_index=True)
-    # 必要な列に基づいてデータを集計する
-    # ここでは 'メーカー型番' と '注文数量の合計' 列が必要
-    # 実際のPDF構造に応じて列名を調整する必要がある
     return picking_list.groupby('Unnamed: 1')['Unnamed: 2'].sum().reset_index()
+
+
 
 def e_shops_page():
     uploaded_file_picking1 = st.file_uploader("1つ目のピッキングリストPDFをアップロードしてください", type=['pdf'], key='picking1')
@@ -55,7 +57,7 @@ def e_shops_page():
                     st.error(f"シート {sheet} の読み込み中にエラーが発生しました: {e}")
 
         binary_excel = output.getvalue()
-        st.markdown(get_binary_file_downloader_html(binary_excel, '結果.xlsx'), unsafe_allow_html=True)
+        st.markdown(get_binary_file_downloader_html(binary_excel, 'pip install --upgrade pip結果.xlsx'), unsafe_allow_html=True)
 
 if __name__ == "__main__":
     e_shops_page()

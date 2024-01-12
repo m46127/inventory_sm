@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 import io
 import base64
+import numpy as np
 
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     bin_str = base64.b64encode(bin_file).decode()
@@ -40,6 +41,12 @@ def main():
                     result_df = pd.merge(inventory[['ＪＡＮ']], picking_list_grouped, left_on='ＪＡＮ', right_on='メーカー型番', how='left')
                     result_df = result_df[['ＪＡＮ', '注文数量の合計']]
                     result_df.rename(columns={'注文数量の合計': '数量'}, inplace=True)
+
+                    # JANごとに最初の行のみ数量を表示し、他の行はNaNに設定
+                    result_df['first_in_group'] = result_df.groupby('ＪＡＮ')['ＪＡＮ'].transform('idxmax')
+                    result_df['数量'] = result_df.apply(lambda x: x['数量'] if x.name == x['first_in_group'] else np.nan, axis=1)
+                    result_df.drop('first_in_group', axis=1, inplace=True)
+
                     # シートごとに結果を保存
                     result_df.to_excel(writer, sheet_name=sheet, index=False)
                 except Exception as e:
